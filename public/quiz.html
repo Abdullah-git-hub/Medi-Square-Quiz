@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taking Quiz - Medi Square</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body { background: #F8FAFC; }
+        .quiz-container { max-width: 800px; margin: 30px auto; padding: 0 15px; }
+        .timer { font-size: 1.4rem; font-weight: 700; color: var(--error); display: flex; align-items: center; gap: 8px;}
+        .timer.safe { color: var(--text-dark); }
+        .question-box { display: none; margin-bottom: 20px; }
+        .question-box.active { display: block; animation: slideUp 0.3s ease-out forwards; }
+        .option-label { display: block; padding: 16px; border: 2px solid #E2E8F0; border-radius: 10px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; font-weight: 500;}
+        .option-label:hover { border-color: var(--primary); background: #F1F8FF; }
+        .option-label input { margin-right: 15px; width: 1.2rem; height: 1.2rem; cursor:pointer;}
+        input:checked + span { font-weight: 600; color: var(--primary); }
+        .option-label:has(input:checked) { border-color: var(--primary); background: #E1F0FF; }
+        .progress-bar { width: 100%; height: 8px; background: #E2E8F0; border-radius: 4px; margin-bottom: 25px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--secondary); transition: width 0.3s ease; }
+        
+        /* Chatbot */
+        #chatbot { position: fixed; bottom: 30px; right: 30px; width: 320px; z-index: 1000; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border-radius: 12px; }
+        .chat-header { background: var(--primary); color: white; padding: 12px 18px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; cursor: pointer;font-weight:600;}
+        .chat-body { background: white; border-radius: 0 0 12px 12px; height: 300px; display: flex; flex-direction: column; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; font-size: 0.95rem; }
+        .chat-input { display: flex; padding: 10px; border-top: 1px solid #E2E8F0; }
+        .chat-input input { margin-bottom: 0; border: none; background: #F8FAFC; padding: 10px 15px; border-radius: 8px 0 0 8px; flex:1;}
+        .chat-input button { border-radius: 0 8px 8px 0; }
+        .msg { margin-bottom: 12px; padding: 10px 14px; border-radius: 10px; max-width: 85%; line-height: 1.4; }
+        .msg.bot { background: #F1F5F9; align-self: flex-start; color: #333; border-bottom-left-radius: 0;}
+        .msg.user { background: var(--primary); color: white; align-self: flex-end; margin-left: auto; border-bottom-right-radius: 0;}
+        .bot-bubble { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; cursor: pointer; box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4); transition: transform 0.2s;}
+        .bot-bubble:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand" id="qNavTitle">Loading Quiz...</div>
+        <div class="timer safe" id="timerDisplay"></div>
+    </nav>
+    <div class="quiz-container fade-in">
+        <div class="card" id="quizPanel" style="padding: 40px;">
+            <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width: 0%"></div></div>
+            <div class="flex space-between" style="margin-bottom: 30px; font-weight: 600; color: #64748B;">
+                <span id="qProgressText">Question 1 of N</span>
+            </div>
+            
+            <form id="questionsForm">
+                <div id="questionsContainer"></div>
+                <div class="flex space-between mt-3" style="padding-top: 25px; border-top: 1px solid #E2E8F0; margin-top:20px;">
+                    <button type="button" class="btn btn-secondary hidden" id="prevBtn" onclick="navigateQ(-1)">Previous</button>
+                    <div style="flex:1"></div>
+                    <button type="button" class="btn" id="nextBtn" onclick="navigateQ(1)">Next Question</button>
+                    <button type="submit" class="btn btn-success hidden" id="submitBtn">Submit Quiz</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card hidden" id="resultPanel" style="text-align: center; padding: 50px 30px;">
+            <h2 id="resTitle" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 10px;">Quiz Completed!</h2>
+            <div style="font-size: 5rem; font-weight: 700; margin: 20px 0; color: var(--text-dark);" id="resScore">--/--</div>
+            <p id="resMsg" style="font-size: 1.2rem; margin-bottom: 35px; color:#64748B;"></p>
+            <button class="btn" style="padding:15px 30px; font-size:1.1rem" onclick="window.location.href='/'">Back to Home</button>
+            
+            <div id="resAnswers" style="margin-top: 50px; text-align: left; background:#F8FAFC; padding: 30px; border-radius: var(--border-radius);" class="hidden">
+                <h3 style="border-bottom: 2px solid #E2E8F0; padding-bottom:15px; margin-bottom:20px;">Review Answers</h3>
+                <div id="ansList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot Assistant -->
+    <div class="bot-bubble" id="botBubble" onclick="toggleChat()">💬</div>
+    <div id="chatbot">
+        <div class="chat-header" onclick="toggleChat()">
+            <span>Medi Assistant</span>
+            <span style="font-size: 1.2rem;">&times;</span>
+        </div>
+        <div class="chat-body">
+            <div class="chat-messages" id="chatChat">
+                <div class="msg bot">Hi! I'm your Medi Square Guide. Need help understanding how to navigate the quiz or check the time? Just ask!</div>
+            </div>
+            <form class="chat-input" id="chatForm">
+                <input type="text" id="chatIn" placeholder="Type a message..." required>
+                <button type="submit" class="btn" style="padding:10px 15px;">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Medi Square</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script>if (!localStorage.getItem('adminToken')) window.location.href = '/login.html';</script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">📊 Medi Square Admin</div>
+        <div class="nav-links">
+            <button id="nav-dashboard" class="active" onclick="showSection('dashboard')">Dashboard</button>
+            <button id="nav-quizzes" onclick="showSection('quizzes')">Quizzes Setup</button>
+            <button class="btn btn-secondary" onclick="logout()" style="margin-left: 20px;">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container fade-in" id="main-content">
+        <!-- Dashboard Section -->
+        <section id="sec-dashboard">
+            <h2>Overview Analytics</h2>
+            <div class="stats-grid">
+                <div class="card stat-card"><h3>Total Quizzes</h3><div class="value" id="stat-quizzes">-</div></div>
+                <div class="card stat-card"><h3>Total Students</h3><div class="value" id="stat-students">-</div></div>
+                <div class="card stat-card"><h3>Total Attempts</h3><div class="value" id="stat-attempts">-</div></div>
+            </div>
+            <div class="card">
+                <p>Welcome to the admin panel. Use the top navigation to create and manage your quizzes.</p>
+            </div>
+        </section>
+
+        <!-- Quizzes Section -->
+        <section id="sec-quizzes" class="hidden">
+            <div class="flex space-between">
+                <h2>Manage Quizzes</h2>
+                <button class="btn" onclick="openCreateQuizModal()">+ Create New Quiz</button>
+            </div>
+            <div class="card mt-3">
+                <div class="table-responsive">
+                    <table id="quizzesTable">
+                        <thead><tr><th>Title</th><th>Category</th><th>Difficulty</th><th>Timer (m)</th><th>Limits</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody><!-- JS --></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Details (Questions & Leaderboard) -->
+        <section id="sec-quiz-details" class="hidden">
+            <button class="btn btn-secondary" onclick="showSection('quizzes')" style="margin-bottom: 15px;">&larr; Back to Quizzes</button>
+            <h2 id="detail-quiz-title">Quiz Details</h2>
+            
+            <div class="flex space-between" style="border-bottom: 2px solid #E2E8F0; padding-bottom: 15px; margin-bottom: 20px;">
+                <div>
+                   <button class="btn" id="btn-tab-questions" onclick="showDetailTab('questions')">Manage Questions</button>
+                   <button class="btn btn-secondary" id="btn-tab-leaderboard" onclick="showDetailTab('leaderboard')">View Leaderboard</button>
+                </div>
+                <div class="flex">
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="importCSV(event)">
+                    <button class="btn" style="background:var(--secondary)" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
+                    <button class="btn btn-success" onclick="exportLeaderboard()">Export Results to CSV</button>
+                </div>
+            </div>
+
+            <!-- Questions Editor Tab -->
+            <div id="tab-questions">
+                <form id="addQuestionForm" class="card flex space-between" style="gap:10px; align-items:flex-end; flex-wrap: wrap;">
+                    <div style="flex:1; min-width: 200px;"><label>Question Text</label><input type="text" id="q_text" required></div>
+                    <div style="width: 150px;"><label>Type</label>
+                        <select id="q_type" onchange="toggleOptionField()">
+                            <option value="MCQ">Multiple Choice</option>
+                            <option value="TF">True/False</option>
+                            <option value="ShortAnswer">Short Answer</option>
+                        </select>
+                    </div>
+                    <div style="flex:1; min-width: 150px;" id="q_options_div"><label>Options (delimited by | )</label><input type="text" id="q_options" placeholder="A | B | C | D"></div>
+                    <div style="flex:1; min-width: 120px;"><label>Correct Answer</label><input type="text" id="q_correct" required placeholder="Exact match"></div>
+                    <div><button type="submit" class="btn" style="margin-bottom: 15px;">Add Question</button></div>
+                </form>
+                <div class="card table-responsive">
+                    <table id="questionsTable"><thead><tr><th>Question</th><th>Type</th><th>Options</th><th>Correct</th><th>Action</th></tr></thead><tbody></tbody></table>
+                </div>
+            </div>
+
+            <!-- Leaderboard Tab -->
+            <div id="tab-leaderboard" class="hidden card table-responsive">
+                <table id="leaderboardTable"><thead><tr><th>Rank</th><th>Student Name</th><th>Phone Number</th><th>Score</th><th>Date Completed</th></tr></thead><tbody></tbody></table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal for Quiz Creation -->
+    <div id="createQuizModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000;">
+        <div class="card fade-in" style="width:500px; max-width:90%; border-radius:12px;">
+            <h3 id="modalTitle">Create New Quiz</h3>
+            <form id="quizForm">
+                <input type="hidden" id="quizId">
+                <label>Title</label><input type="text" id="qTitle" required>
+                <label>Description</label><textarea id="qDesc" rows="2"></textarea>
+                <div class="flex">
+                    <div style="flex:1"><label>Timer (minutes, 0=Off)</label><input type="number" id="qTimer" value="0"></div>
+                    <div style="flex:1"><label>Attempt Limit per Student</label><input type="number" id="qLimit" value="1"></div>
+                </div>
+                <div class="flex">
+                    <div style="flex:1"><label>Category</label><input type="text" id="qCat" value="General"></div>
+                    <div style="flex:1"><label>Difficulty</label>
+                        <select id="qDiff"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+                    </div>
+                </div>
+                <div style="margin:10px 0;">
+                    <label style="display:flex; align-items:center; gap:8px"><input type="checkbox" id="qEnabled" style="width:auto; margin:0"> Enabled (Students can take it)</label>
+                    <label style="display:flex; align-items:center; gap:8px; margin-top:10px;"><input type="checkbox" id="qShowAns" checked style="width:auto; margin:0"> Show answers immediately after submission</label>
+                </div>
+                <div class="flex space-between mt-3" style="border-top: 1px solid #eee; padding-top: 15px;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('createQuizModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn" id="saveQuizBtn">Save Quiz Definition</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
